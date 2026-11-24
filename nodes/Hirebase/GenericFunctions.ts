@@ -10,16 +10,31 @@ import {
 
 export const BASE_URL = 'https://api.hirebase.org';
 
-// The API allows 4 requests per second per key.
-const REQUEST_SPACING_MS = 300;
-const MAX_ATTEMPTS = 4;
+// The API allows 100 requests per 60 seconds per key, so paged requests are
+// spaced to stay under that on their own.
+const REQUEST_SPACING_MS = 600;
+// Server errors are retried with backoff (1s, 2s, 4s).
+const MAX_SERVER_ERROR_ATTEMPTS = 4;
+// Rate-limit 429s are retried after the Retry-After the API sends. A loop over
+// many input items can keep hitting the limit, so allow more waits.
+const MAX_RATE_LIMIT_ATTEMPTS = 8;
+const MAX_RETRY_AFTER_SECONDS = 65;
 
 // Page size is capped by the API at 100 (it rejects larger pages).
 export const PAGE_LIMIT = 100;
 
 interface FullResponse {
 	statusCode: number;
+	headers?: Record<string, unknown>;
 	body: unknown;
+}
+
+function headerOf(response: FullResponse, name: string): string | undefined {
+	const headers = response.headers ?? {};
+	const key = Object.keys(headers).find((k) => k.toLowerCase() === name);
+	const value = key === undefined ? undefined : headers[key];
+	if (Array.isArray(value)) return value.length > 0 ? String(value[0]) : undefined;
+	return value === undefined || value === null ? undefined : String(value);
 }
 
 function detailOf(body: unknown): string {
@@ -70,26 +85,49 @@ export async function hirebaseApiRequest(
 		if (statusCode >= 200 && statusCode < 300) return responseBody as IDataObject;
 
 		const detail = detailOf(responseBody);
+		// A 429 is either the request rate limit (comes with Retry-After) or a used-up
+		// plan allowance (X-Billing-Code: limit_exceeded). Only the first is worth
+		// retrying: the allowance won't come back until the billing period resets.
+		const quotaExhausted =
+			statusCode === 429 && headerOf(response, 'x-billing-code') === 'limit_exceeded';
+		const rateLimited = statusCode === 429 && !quotaExhausted;
 		// A query the search backend can't parse fails the same way every time,
 		// so it is reported straight away instead of being retried.
 		const deterministic = /cannot parse/i.test(detail);
-		const retryable = (statusCode === 429 || statusCode >= 500) && !deterministic;
-		if (retryable && attempt < MAX_ATTEMPTS) {
+
+		if (rateLimited && attempt < MAX_RATE_LIMIT_ATTEMPTS) {
+			const retryAfter = Number(headerOf(response, 'retry-after'));
+			const waitSeconds =
+				Number.isFinite(retryAfter) && retryAfter > 0
+					? Math.min(retryAfter, MAX_RETRY_AFTER_SECONDS)
+					: 2 ** (attempt - 1);
+			await sleep(waitSeconds * 1000);
+			continue;
+		}
+		if (statusCode >= 500 && !deterministic && attempt < MAX_SERVER_ERROR_ATTEMPTS) {
 			await sleep(1000 * 2 ** (attempt - 1));
 			continue;
 		}
 
 		let message = `Hirebase API error (HTTP ${statusCode})`;
 		let description = detail || undefined;
-		if (statusCode === 401 || statusCode === 403) {
+		if (statusCode === 403 && headerOf(response, 'x-billing-code') === 'feature_missing') {
+			message = 'Your Hirebase plan does not include this operation';
+			description = detail || undefined;
+		} else if (statusCode === 401 || statusCode === 403) {
 			message = 'Hirebase rejected the API key';
 			description = 'Check the API key in the Hirebase credential (app.hirebase.org → Settings → API).';
 		} else if (statusCode === 404) {
 			message = 'Not found in Hirebase';
 		} else if (statusCode === 422 || deterministic) {
 			message = 'Hirebase rejected the request parameters';
-		} else if (statusCode === 429) {
-			message = 'Hirebase rate limit or plan allowance reached';
+		} else if (quotaExhausted) {
+			message = 'Your Hirebase plan allowance is used up for this period';
+			// The API's message says how many units are left, so a smaller Limit may still fit.
+			description = detail || 'See your usage and upgrade at app.hirebase.org.';
+		} else if (rateLimited) {
+			message = 'Hirebase rate limit reached (100 requests per minute)';
+			description = 'Space out the workflow, for example with a Wait node between batches.';
 		}
 
 		throw new NodeApiError(this.getNode(), (responseBody ?? {}) as JsonObject, {

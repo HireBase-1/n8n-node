@@ -38,7 +38,7 @@ You need a Hirebase API key. It starts with `hb_`.
 
 ### Plan usage
 
-Each job returned uses one unit of your plan's jobs allowance, and each company from Company Search uses one companies unit.
+Each job returned (Job Search, Job Get, Company Get Jobs) uses one unit of your plan's jobs allowance. Each company returned by Company Search, and each Company Get, uses one companies unit.
 Market Insight calls use the separate insights allowance, one per call.
 **Return All** is capped at 10,000 jobs or 1,000 companies per run. Use **Limit** to keep scheduled workflows inside your plan.
 
@@ -66,7 +66,7 @@ Market Insight calls use the separate insights allowance, one per call.
 - **Locations** takes city, region and country. Use full region names (`Texas`, not `TX`).
 - **Posted On or After** overrides **Posted Within (Days)** when both are set.
 - A job's ID is the `_id` field of a search result. A company's slug is its `company_slug` field.
-- Hirebase allows about 4 requests per second. The node spaces paged requests and retries rate-limit and server errors on its own.
+- Hirebase allows 100 requests per minute per API key. The node spaces paged requests, waits and retries when it hits the rate limit, and retries server errors. It does not retry when your plan allowance is used up; it stops with a clear error instead.
 
 ## Compatibility
 
@@ -74,7 +74,7 @@ Built with `@n8n/node-cli` 0.56 against `n8n-workflow` 2.x. Requires an n8n vers
 
 ## Resources
 
-- [Hirebase API documentation](https://api.hirebase.org/docs)
+- [Hirebase API documentation](https://www.hirebase.org/docs)
 - [Hirebase](https://www.hirebase.org)
 - [n8n community nodes documentation](https://docs.n8n.io/integrations/#community-nodes)
 

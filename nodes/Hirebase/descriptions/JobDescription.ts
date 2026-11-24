@@ -87,7 +87,6 @@ export const jobFields: INodeProperties[] = [
 				name: 'sortBy',
 				type: 'options',
 				options: [
-					{ name: 'Company', value: 'company' },
 					{ name: 'Date Posted', value: 'date_posted' },
 					{ name: 'Relevance', value: 'relevance' },
 					{ name: 'Salary', value: 'salary' },
