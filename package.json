@@ -1,0 +1,57 @@
+{
+	"name": "n8n-nodes-hirebase",
+	"version": "0.1.0",
+	"description": "n8n node for Hirebase: search job postings collected from employers' own career pages, find hiring companies and get job-market insights.",
+	"license": "MIT",
+	"homepage": "https://www.hirebase.org",
+	"keywords": [
+		"n8n-community-node-package",
+		"n8n",
+		"hirebase",
+		"jobs",
+		"job postings",
+		"hiring signals",
+		"recruiting",
+		"salary data"
+	],
+	"author": {
+		"name": "Hirebase",
+		"email": "hello@hirebase.org"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/HireBase-1/n8n-node.git"
+	},
+	"scripts": {
+		"build": "n8n-node build",
+		"build:watch": "tsc --watch",
+		"dev": "n8n-node dev",
+		"lint": "n8n-node lint",
+		"lint:fix": "n8n-node lint --fix",
+		"release": "n8n-node release",
+		"prepublishOnly": "n8n-node prerelease"
+	},
+	"files": [
+		"dist"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"strict": true,
+		"credentials": [
+			"dist/credentials/HirebaseApi.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/Hirebase/Hirebase.node.js"
+		]
+	},
+	"devDependencies": {
+		"@n8n/node-cli": "^0.56.3",
+		"eslint": "9.39.4",
+		"prettier": "3.8.3",
+		"release-it": "20.2.0",
+		"typescript": "5.9.3"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	}
+}
