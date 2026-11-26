@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-hirebase",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "n8n node for Hirebase: search job postings collected from employers' own career pages, find hiring companies and get job-market insights.",
 	"license": "MIT",
 	"homepage": "https://www.hirebase.org",
